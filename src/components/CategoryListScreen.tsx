@@ -25,8 +25,9 @@ interface CategoryItem {
   channelCount: number;
 }
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 2;
+const { width, height } = Dimensions.get('window');
+const isPortrait = height > width;
+const cardWidth = isPortrait ? (width - 60) / 2 : (width - 80) / 3;
 
 const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelect }) => {
   const [channelsData, setChannelsData] = useState<TVChannelsData | null>(null);
@@ -117,7 +118,7 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
       <View style={styles.header}>
         <Text style={styles.headerTitle}>iLiveTV</Text>
         <Text style={styles.headerSubtitle}>
-          Choose a category to browse channels
+          Choose a category
         </Text>
       </View>
 
@@ -125,13 +126,14 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
         data={categories}
         renderItem={renderCategoryItem}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
+        numColumns={isPortrait ? 2 : 3}
+        columnWrapperStyle={isPortrait ? styles.row : styles.rowLandscape}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
+        style={styles.flatList}
       />
     </SafeAreaView>
   );
@@ -170,11 +172,18 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  flatList: {
+    flex: 1,
+  },
   listContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   row: {
     justifyContent: 'space-between',
+  },
+  rowLandscape: {
+    justifyContent: 'space-around',
   },
   categoryCard: {
     width: cardWidth,

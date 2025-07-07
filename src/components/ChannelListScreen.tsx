@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import ChannelCard from './ChannelCard';
 import tvChannelsService, { Channel, ChannelCategory } from '../api/tvChannelsService';
@@ -33,6 +34,9 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   onPlayVideo,
 }) => {
   const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
+  
+  const { width, height } = Dimensions.get('window');
+  const isPortrait = height > width;
 
   const channels: ChannelItem[] = Object.entries(categoryData).map(([channelName, channel]) => ({
     id: channelName,
@@ -117,10 +121,11 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
         data={channels}
         renderItem={renderChannelItem}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
+        numColumns={isPortrait ? 2 : 3}
+        columnWrapperStyle={isPortrait ? styles.row : styles.rowLandscape}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        style={styles.flatList}
       />
     </SafeAreaView>
   );
@@ -156,11 +161,18 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  flatList: {
+    flex: 1,
+  },
   listContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   row: {
     justifyContent: 'space-between',
+  },
+  rowLandscape: {
+    justifyContent: 'space-around',
   },
   channelWrapper: {
     position: 'relative',

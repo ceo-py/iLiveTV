@@ -15,8 +15,9 @@ interface ChannelCardProps {
   onPress: (channelName: string, channel: Channel) => void;
 }
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 2; // 2 columns with margins
+const { width, height } = Dimensions.get('window');
+const isPortrait = height > width;
+const cardWidth = isPortrait ? (width - 60) / 2 : (width - 80) / 3; // Responsive columns
 
 const ChannelCard: React.FC<ChannelCardProps> = ({
   channelName,
