@@ -17,6 +17,7 @@ interface ChannelListScreenProps {
   categoryName: string;
   categoryData: ChannelCategory;
   onBack: () => void;
+  onPlayVideo: (videoUrl: string, channelName: string) => void;
 }
 
 interface ChannelItem {
@@ -29,6 +30,7 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   categoryName,
   categoryData,
   onBack,
+  onPlayVideo,
 }) => {
   const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
 
@@ -38,34 +40,43 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
     channel,
   }));
 
+  const analyzeUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      const isM3U8 = url.includes('.m3u8');
+      const hasToken = urlObj.searchParams.has('token');
+      const domain = urlObj.hostname;
+      
+      return {
+        domain,
+        isM3U8,
+        hasToken,
+        protocol: urlObj.protocol,
+        pathname: urlObj.pathname,
+        tokenValue: hasToken ? urlObj.searchParams.get('token') : null
+      };
+    } catch {
+      return null;
+    }
+  };
+
   const handleChannelPress = async (channelName: string, channel: Channel) => {
     try {
       setLoadingChannel(channelName);
       
       // Make API request to get video URL
       const videoUrl = await tvChannelsService.getChannelVideoUrl(categoryName, channelName);
+      // Validate the video URL
+      if (typeof videoUrl !== 'string' || videoUrl.trim() === '') {
+        Alert.alert(
+          'Error',
+          `Invalid video URL received for ${channelName}. Please try again.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       
-      Alert.alert(
-        channelName,
-        `Video URL retrieved successfully!`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Play', 
-            onPress: () => {
-              // TODO: Navigate to video player with videoUrl
-              console.log('Playing channel:', channelName, 'Video URL:', videoUrl);
-              // You can integrate with a video player library here
-            }
-          },
-        ]
-      );
-    } catch (error) {
-      Alert.alert(
-        'Error',
-        `Failed to get video URL for ${channelName}. Please try again.`,
-        [{ text: 'OK' }]
-      );
+      onPlayVideo(videoUrl.trim(), channelName)
     } finally {
       setLoadingChannel(null);
     }

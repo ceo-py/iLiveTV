@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import CategoryListScreen from './CategoryListScreen';
 import ChannelListScreen from './ChannelListScreen';
+import VideoPlayerScreen from './VideoPlayerScreen';
 import { ChannelCategory } from '../api/tvChannelsService';
 
-type ScreenType = 'categories' | 'channels';
+type ScreenType = 'categories' | 'channels' | 'player';
 
 interface SelectedCategory {
   name: string;
   data: ChannelCategory;
 }
 
+interface VideoPlayerData {
+  videoUrl: string;
+  channelName: string;
+}
+
 const TVChannelsScreen: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('categories');
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
+  const [videoPlayerData, setVideoPlayerData] = useState<VideoPlayerData | null>(null);
 
   const handleCategorySelect = (categoryName: string, categoryData: ChannelCategory) => {
     setSelectedCategory({
@@ -27,6 +34,19 @@ const TVChannelsScreen: React.FC = () => {
     setSelectedCategory(null);
   };
 
+  const handlePlayVideo = (videoUrl: string, channelName: string) => {
+    setVideoPlayerData({
+      videoUrl,
+      channelName,
+    });
+    setCurrentScreen('player');
+  };
+
+  const handleBackFromPlayer = () => {
+    setCurrentScreen('channels');
+    setVideoPlayerData(null);
+  };
+
   if (currentScreen === 'categories') {
     return <CategoryListScreen onCategorySelect={handleCategorySelect} />;
   }
@@ -37,6 +57,17 @@ const TVChannelsScreen: React.FC = () => {
         categoryName={selectedCategory.name}
         categoryData={selectedCategory.data}
         onBack={handleBackToCategories}
+        onPlayVideo={handlePlayVideo}
+      />
+    );
+  }
+
+  if (currentScreen === 'player' && videoPlayerData) {
+    return (
+      <VideoPlayerScreen
+        videoUrl={videoPlayerData.videoUrl}
+        channelName={videoPlayerData.channelName}
+        onBack={handleBackFromPlayer}
       />
     );
   }

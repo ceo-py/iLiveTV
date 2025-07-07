@@ -32,6 +32,7 @@ class TVChannelsService {
   }
 
   async getChannelVideoUrl(channelType: string, channelName: string): Promise<string> {
+   
     try {
       const response = await fetch(`${this.baseUrl}/get-channel-video-url`, {
         method: 'POST',
@@ -51,7 +52,14 @@ class TVChannelsService {
       const data = await response.json();
       
       if (data.success) {
-        return data.url;
+        const url = data.url[0];
+        
+        // Validate that the URL is a string
+        if (typeof url !== 'string' || url.trim() === '') {
+          throw new Error('Invalid URL received from server');
+        }
+        
+        return url.trim();
       } else {
         throw new Error(data.error || 'Failed to get video URL');
       }
