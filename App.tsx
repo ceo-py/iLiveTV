@@ -6,7 +6,6 @@
  */
 
 import React, { useState } from 'react';
-import { NewAppScreen } from '@react-native/new-app-screen';
 import { StatusBar, StyleSheet, useColorScheme, View, TouchableOpacity, Text } from 'react-native';
 import TVChannelsScreen from './src/components/TVChannelsScreen';
 import VideoPlayerDebug from './src/components/VideoPlayerDebug';

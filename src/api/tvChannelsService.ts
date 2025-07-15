@@ -13,7 +13,7 @@ export interface TVChannelsData {
 }
 
 class TVChannelsService {
-  private baseUrl = 'http://192.168.0.100:5000';
+  private baseUrl = 'https://video-api.ceo-py.eu';
 
   async getAllChannels(): Promise<TVChannelsData> {
     try {
@@ -50,6 +50,8 @@ class TVChannelsService {
       }
 
       const data = await response.json();
+      console.log(data);
+      
       
       if (data.success) {
         const url = data.url[0];
