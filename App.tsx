@@ -10,9 +10,15 @@ import { StatusBar, StyleSheet, useColorScheme, View, TouchableOpacity, Text } f
 import TVChannelsScreen from './src/components/TVChannelsScreen';
 import VideoPlayerDebug from './src/components/VideoPlayerDebug';
 
+// Move currentScreen state up to App
+const SCREEN_CATEGORIES = 'categories';
+const SCREEN_CHANNELS = 'channels';
+const SCREEN_PLAYER = 'player';
+
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
   const [showDebug, setShowDebug] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState('categories');
 
   if (showDebug) {
     return (
@@ -26,13 +32,16 @@ function App() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <TouchableOpacity 
-        style={styles.debugButton} 
-        onPress={() => setShowDebug(true)}
-      >
-        <Text style={styles.debugButtonText}>Debug Video Player</Text>
-      </TouchableOpacity>
-      <TVChannelsScreen />
+      {/* Only show debug button if not playing video and not in debug mode */}
+      {currentScreen !== SCREEN_PLAYER && (
+        <TouchableOpacity 
+          style={styles.debugButton} 
+          onPress={() => setShowDebug(true)}
+        >
+          <Text style={styles.debugButtonText}>Debug Video Player</Text>
+        </TouchableOpacity>
+      )}
+      <TVChannelsScreen currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
     </View>
   );
 }

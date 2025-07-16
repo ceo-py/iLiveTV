@@ -16,8 +16,12 @@ interface VideoPlayerData {
   channelName: string;
 }
 
-const TVChannelsScreen: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<ScreenType>('categories');
+interface TVChannelsScreenProps {
+  currentScreen: ScreenType;
+  setCurrentScreen: (screen: ScreenType) => void;
+}
+
+const TVChannelsScreen: React.FC<TVChannelsScreenProps> = ({ currentScreen, setCurrentScreen }) => {
   const [selectedCategory, setSelectedCategory] = useState<SelectedCategory | null>(null);
   const [videoPlayerData, setVideoPlayerData] = useState<VideoPlayerData | null>(null);
 

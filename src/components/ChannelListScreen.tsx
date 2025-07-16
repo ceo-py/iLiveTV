@@ -44,26 +44,6 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
     channel,
   }));
 
-  const analyzeUrl = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      const isM3U8 = url.includes('.m3u8');
-      const hasToken = urlObj.searchParams.has('token');
-      const domain = urlObj.hostname;
-      
-      return {
-        domain,
-        isM3U8,
-        hasToken,
-        protocol: urlObj.protocol,
-        pathname: urlObj.pathname,
-        tokenValue: hasToken ? urlObj.searchParams.get('token') : null
-      };
-    } catch {
-      return null;
-    }
-  };
-
   const handleChannelPress = async (channelName: string, channel: Channel) => {
     try {
       setLoadingChannel(channelName);
