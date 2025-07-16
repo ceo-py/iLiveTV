@@ -19,8 +19,6 @@ interface VideoPlayerScreenProps {
   onBack: () => void;
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({
   videoUrl,
   channelName,
@@ -30,6 +28,7 @@ const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({
   const [hasError, setHasError] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [screenDimensions, setScreenDimensions] = useState(Dimensions.get('window'));
   const videoRef = useRef<VideoRef>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,13 +48,18 @@ const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({
   useEffect(() => {
     // Lock orientation to landscape for better TV experience
     Orientation.lockToLandscape();
-    
+
+    // Listen for orientation changes and update screen dimensions
+    const updateDimensions = () => {
+      setScreenDimensions(Dimensions.get('window'));
+    };
+    Dimensions.addEventListener('change', updateDimensions);
+
     // Handle back button
     const backAction = () => {
       handleBack();
       return true;
     };
-
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
 
     return () => {
@@ -152,8 +156,8 @@ const VideoPlayerScreen: React.FC<VideoPlayerScreenProps> = ({
           <Video
             ref={videoRef}
             source={{ uri: validVideoUrl }}
-            style={isFullscreen ? styles.fullscreenVideo : styles.video}
-            resizeMode="contain"
+            style={{ width: screenDimensions.width, height: screenDimensions.height }}
+            resizeMode="cover"
             onLoad={handleVideoLoad}
             onError={handleVideoError}
             onBuffer={handleVideoBuffer}
@@ -206,14 +210,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  video: {
-    width: screenWidth,
-    height: screenHeight,
-  },
-  fullscreenVideo: {
-    width: screenWidth,
-    height: screenHeight,
-  },
+  video: {},
+  fullscreenVideo: {},
   loadingOverlay: {
     position: 'absolute',
     top: 0,

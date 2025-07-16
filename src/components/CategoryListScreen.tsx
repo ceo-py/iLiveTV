@@ -38,17 +38,9 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
 
   useEffect(() => {
     fetchChannels();
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+    Dimensions.addEventListener('change', ({ window }) => {
       setDimensions(window);
     });
-    return () => {
-      if (typeof subscription?.remove === 'function') {
-        subscription.remove();
-      } else if (typeof subscription === 'function') {
-        // For older RN versions
-        subscription();
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -182,6 +174,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   header: {
+    marginTop: 12,
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,

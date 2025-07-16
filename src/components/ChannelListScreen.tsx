@@ -40,18 +40,11 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const [refreshing, setRefreshing] = useState(false);
-
+  
   useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+    Dimensions.addEventListener('change', ({ window }) => {
       setDimensions(window);
     });
-    return () => {
-      if (typeof subscription?.remove === 'function') {
-        subscription.remove();
-      } else if (typeof subscription === 'function') {
-        subscription();
-      }
-    };
   }, []);
 
   const channels: ChannelItem[] = Object.entries(categoryData).map(([channelName, channel]) => ({
@@ -84,8 +77,6 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // You may want to refetch categoryData here if you have a fetch function
-    setRefreshing(false);
   };
 
   // Responsive calculation
@@ -122,20 +113,24 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
     </View>
   );
 
+  // Handle back button
+  const handleBack = () => {
+    onBack();
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {tvChannelsService.formatCategoryName(categoryName)}
         </Text>
         <Text style={styles.headerSubtitle}>
           {channels.length} channels available
         </Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -157,6 +152,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
+    marginTop: 12,
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -164,7 +160,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e1e1e1',
   },
   backButton: {
-    marginBottom: 8,
+    marginTop: 12,
+    alignSelf: 'flex-end',
   },
   backButtonText: {
     fontSize: 16,
