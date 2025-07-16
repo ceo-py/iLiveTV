@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   SafeAreaView,
   StatusBar,
@@ -10,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  ScrollView,
+  RefreshControl,
 } from 'react-native';
 import ChannelCard from './ChannelCard';
 import tvChannelsService, { Channel, ChannelCategory } from '../api/tvChannelsService';
@@ -27,6 +28,9 @@ interface ChannelItem {
   channel: Channel;
 }
 
+const CARD_MIN_WIDTH = 160;
+const CARD_MARGIN = 10;
+
 const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   categoryName,
   categoryData,
@@ -34,9 +38,21 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   onPlayVideo,
 }) => {
   const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
-  
-  const { width, height } = Dimensions.get('window');
-  const isPortrait = height > width;
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    return () => {
+      if (typeof subscription?.remove === 'function') {
+        subscription.remove();
+      } else if (typeof subscription === 'function') {
+        subscription();
+      }
+    };
+  }, []);
 
   const channels: ChannelItem[] = Object.entries(categoryData).map(([channelName, channel]) => ({
     id: channelName,
@@ -47,7 +63,7 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   const handleChannelPress = async (channelName: string, channel: Channel) => {
     try {
       setLoadingChannel(channelName);
-      
+
       // Make API request to get video URL
       const videoUrl = await tvChannelsService.getChannelVideoUrl(categoryName, channelName);
       // Validate the video URL
@@ -59,32 +75,57 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
         );
         return;
       }
-      
-      onPlayVideo(videoUrl.trim(), channelName)
+
+      onPlayVideo(videoUrl.trim(), channelName);
     } finally {
       setLoadingChannel(null);
     }
   };
 
-  const renderChannelItem = ({ item }: { item: ChannelItem }) => (
-    <View style={styles.channelWrapper}>
-      <ChannelCard
-        channelName={item.name}
-        channel={item.channel}
-        onPress={handleChannelPress}
-      />
-      {loadingChannel === item.name && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="small" color="#007AFF" />
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // You may want to refetch categoryData here if you have a fetch function
+    setRefreshing(false);
+  };
+
+  // Responsive calculation
+  const screenWidth = dimensions.width;
+  const numColumns = Math.max(1, Math.floor((screenWidth - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN)));
+  const cardWidth = (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
+
+  const renderChannelCards = () => (
+    <View style={styles.grid}>
+      {channels.map((item, idx) => (
+        <View
+          key={item.id}
+          style={[
+            styles.channelWrapper,
+            {
+              width: cardWidth,
+              marginLeft: CARD_MARGIN,
+              marginRight: (idx + 1) % numColumns === 0 ? CARD_MARGIN : 0,
+            },
+          ]}
+        >
+          <ChannelCard
+            channelName={item.name}
+            channel={item.channel}
+            onPress={handleChannelPress}
+          />
+          {loadingChannel === item.name && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="small" color="#007AFF" />
+            </View>
+          )}
         </View>
-      )}
+      ))}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>← Back</Text>
@@ -97,16 +138,15 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
         </Text>
       </View>
 
-      <FlatList
-        data={channels}
-        renderItem={renderChannelItem}
-        keyExtractor={(item) => item.id}
-        numColumns={isPortrait ? 2 : 3}
-        columnWrapperStyle={isPortrait ? styles.row : styles.rowLandscape}
+      <ScrollView
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         showsVerticalScrollIndicator={false}
-        style={styles.flatList}
-      />
+      >
+        {renderChannelCards()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -141,21 +181,19 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  flatList: {
-    flex: 1,
-  },
   listContainer: {
-    padding: 20,
+    paddingVertical: 20,
     paddingBottom: 40,
   },
-  row: {
-    justifyContent: 'space-between',
-  },
-  rowLandscape: {
-    justifyContent: 'space-around',
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
   channelWrapper: {
     position: 'relative',
+    marginBottom: 16,
+    borderRadius: 12,
   },
   loadingOverlay: {
     position: 'absolute',

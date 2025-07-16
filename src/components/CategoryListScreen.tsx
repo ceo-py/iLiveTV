@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -11,6 +10,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
+  RefreshControlProps,
 } from 'react-native';
 import tvChannelsService, { TVChannelsData } from '../api/tvChannelsService';
 
@@ -25,18 +26,29 @@ interface CategoryItem {
   channelCount: number;
 }
 
-const { width, height } = Dimensions.get('window');
-const isPortrait = height > width;
-const cardWidth = isPortrait ? (width - 60) / 2 : (width - 80) / 3;
+const CARD_MIN_WIDTH = 160;
+const CARD_MARGIN = 10;
 
 const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelect }) => {
   const [channelsData, setChannelsData] = useState<TVChannelsData | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
 
   useEffect(() => {
     fetchChannels();
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions(window);
+    });
+    return () => {
+      if (typeof subscription?.remove === 'function') {
+        subscription.remove();
+      } else if (typeof subscription === 'function') {
+        // For older RN versions
+        subscription();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -86,20 +98,38 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
     }
   };
 
-  const renderCategoryItem = ({ item }: { item: CategoryItem }) => (
-    <TouchableOpacity
-      style={styles.categoryCard}
-      onPress={() => handleCategoryPress(item)}
-      activeOpacity={0.7}>
-      <View style={styles.categoryContent}>
-        <Text style={styles.categoryName} numberOfLines={2}>
-          {item.displayName}
-        </Text>
-        <Text style={styles.channelCount}>
-          {item.channelCount} channels
-        </Text>
-      </View>
-    </TouchableOpacity>
+  // Responsive calculation
+  const screenWidth = dimensions.width;
+  const numColumns = Math.max(1, Math.floor((screenWidth - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN)));
+  const cardWidth = (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
+
+  const renderCategoryCards = () => (
+    <View style={styles.grid}>
+      {categories.map((item, idx) => (
+        <TouchableOpacity
+          key={item.id}
+          style={[
+            styles.categoryCard,
+            {
+              width: cardWidth,
+              marginLeft: CARD_MARGIN,
+              marginRight: (idx + 1) % numColumns === 0 ? CARD_MARGIN : 0,
+            },
+          ]}
+          onPress={() => handleCategoryPress(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.categoryContent}>
+            <Text style={styles.categoryName} numberOfLines={2}>
+              {item.displayName}
+            </Text>
+            <Text style={styles.channelCount}>
+              {item.channelCount} channels
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 
   if (loading) {
@@ -114,7 +144,7 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>iLiveTV</Text>
         <Text style={styles.headerSubtitle}>
@@ -122,19 +152,15 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
         </Text>
       </View>
 
-      <FlatList
-        data={categories}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item.id}
-        numColumns={isPortrait ? 2 : 3}
-        columnWrapperStyle={isPortrait ? styles.row : styles.rowLandscape}
+      <ScrollView
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.flatList}
-      />
+      >
+        {renderCategoryCards()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -172,21 +198,16 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  flatList: {
-    flex: 1,
-  },
   listContainer: {
-    padding: 20,
+    paddingVertical: 20,
     paddingBottom: 40,
   },
-  row: {
-    justifyContent: 'space-between',
-  },
-  rowLandscape: {
-    justifyContent: 'space-around',
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
   categoryCard: {
-    width: cardWidth,
     backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 16,
