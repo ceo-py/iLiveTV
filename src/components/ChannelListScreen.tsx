@@ -7,7 +7,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator, // Import ActivityIndicator
   useWindowDimensions,
   ScrollView,
   RefreshControl,
@@ -40,7 +40,7 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   const { width } = useWindowDimensions();
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
+  const [loadingChannel, setLoadingChannel] = useState<string | null>(null); // State for the loading channel name
 
   const scrollViewRef = useRef<ScrollView>(null);
   const cardRefs = useRef<any[]>([]);
@@ -83,8 +83,11 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   };
 
   const handleChannelPress = async (channelName: string, channel: Channel) => {
+    // Prevent pressing another channel while one is loading
+    if (loadingChannel) return;
+
     try {
-      setLoadingChannel(channelName);
+      setLoadingChannel(channelName); // Start loading for this specific channel
       const videoUrl = await tvChannelsService.getChannelVideoUrl(
         categoryName,
         channelName
@@ -96,8 +99,10 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
       }
 
       onPlayVideo(videoUrl.trim(), channelName);
+    } catch (error) {
+        Alert.alert('Error', `Failed to load video URL for ${channelName}.`);
     } finally {
-      setLoadingChannel(null);
+      setLoadingChannel(null); // Stop loading when complete
     }
   };
 
@@ -153,11 +158,25 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
                 friction: 9,
               }).start();
             }
+            
+            // Check if this specific card is loading
+            const isLoading = loadingChannel === item.name;
 
             return (
+            <TouchableOpacity
+              key={item.id}
+              ref={(ref) => (cardRefs.current[idx] = ref)}
+              focusable={true}
+              onFocus={() => {
+                setFocusedIndex(idx);
+                scrollToFocused(idx);
+              }}
+              onBlur={() => setFocusedIndex(null)}
+              // Disable press if already loading a channel
+              onPress={isLoading ? undefined : () => handleChannelPress(item.name, item.channel)}
+              activeOpacity={0.9}
+            >
               <Animated.View
-                key={item.id}
-                ref={(ref) => (cardRefs.current[idx] = ref)}
                 style={[
                   styles.channelWrapper,
                   {
@@ -173,12 +192,6 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
                     elevation: focusedIndex === idx ? 10 : 3,
                   },
                 ]}
-                focusable={true}
-                onFocus={() => {
-                  setFocusedIndex(idx);
-                  scrollToFocused(idx);
-                }}
-                onBlur={() => setFocusedIndex(null)}
               >
                 <ChannelCard
                   channelName={item.name}
@@ -186,13 +199,16 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
                   onPress={handleChannelPress}
                   width={cardWidth}
                 />
-
-                {loadingChannel === item.name && (
+                
+                {/* >>>>> ADDED LOADING OVERLAY HERE <<<<< */}
+                {isLoading && (
                   <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="small" color="#007AFF" />
+                    <ActivityIndicator size="large" color="#007AFF" />
                   </View>
                 )}
+                
               </Animated.View>
+            </TouchableOpacity>
             );
           })}
         </View>
@@ -260,16 +276,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 
+  // >>>>> ADDED LOADING OVERLAY STYLE HERE <<<<<
   loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(255,255,255,0.8)', // Semi-transparent white
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 12, // Match the card's border radius
   },
 });
 
