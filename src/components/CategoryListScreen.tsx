@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
-  RefreshControlProps,
+  Animated,
 } from 'react-native';
 import tvChannelsService, { TVChannelsData } from '../api/tvChannelsService';
 
@@ -36,6 +36,8 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
   const [refreshing, setRefreshing] = useState(false);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
 
+  const scrollRef = useRef<ScrollView>(null);
+
   useEffect(() => {
     fetchChannels();
     Dimensions.addEventListener('change', ({ window }) => {
@@ -44,9 +46,7 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
   }, []);
 
   useEffect(() => {
-    if (channelsData) {
-      updateCategoriesList();
-    }
+    if (channelsData) updateCategoriesList();
   }, [channelsData]);
 
   const fetchChannels = async () => {
@@ -54,12 +54,8 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
       setLoading(true);
       const data = await tvChannelsService.getAllChannels();
       setChannelsData(data);
-    } catch (error) {
-      Alert.alert(
-        'Error',
-        'Failed to fetch TV channels. Please check your connection and try again.',
-        [{ text: 'OK' }]
-      );
+    } catch {
+      Alert.alert('Error', 'Failed to fetch TV channels.', [{ text: 'OK' }]);
     } finally {
       setLoading(false);
     }
@@ -74,53 +70,79 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
   const updateCategoriesList = () => {
     if (!channelsData) return;
 
-    const categoryItems: CategoryItem[] = Object.entries(channelsData).map(([categoryKey, categoryChannels]) => ({
-      id: categoryKey,
-      name: categoryKey,
-      displayName: tvChannelsService.formatCategoryName(categoryKey),
-      channelCount: Object.keys(categoryChannels).length,
-    }));
+    const categoryItems: CategoryItem[] = Object.entries(channelsData).map(
+      ([key, ch]) => ({
+        id: key,
+        name: key,
+        displayName: tvChannelsService.formatCategoryName(key),
+        channelCount: Object.keys(ch).length,
+      })
+    );
 
     setCategories(categoryItems);
   };
 
-  const handleCategoryPress = (category: CategoryItem) => {
-    if (channelsData && channelsData[category.name]) {
-      onCategorySelect(category.name, channelsData[category.name]);
-    }
-  };
-
-  // Responsive calculation
   const screenWidth = dimensions.width;
-  const numColumns = Math.max(1, Math.floor((screenWidth - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN)));
-  const cardWidth = (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
+  const numColumns = Math.max(
+    1,
+    Math.floor((screenWidth - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN))
+  );
+  const cardWidth =
+    (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
 
   const renderCategoryCards = () => (
     <View style={styles.grid}>
-      {categories.map((item, idx) => (
-        <TouchableOpacity
-          key={item.id}
-          style={[
-            styles.categoryCard,
-            {
+      {categories.map((item, idx) => {
+        const scale = new Animated.Value(1);
+
+        const onFocus = () => {
+          Animated.spring(scale, {
+            toValue: 1.08,
+            useNativeDriver: true,
+          }).start();
+
+          const row = Math.floor(idx / numColumns);
+          scrollRef.current?.scrollTo({ y: row * 180, animated: true });
+        };
+
+        const onBlur = () => {
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+          }).start();
+        };
+
+        return (
+          <Animated.View
+            key={item.id}
+            style={{
+              transform: [{ scale }],
               width: cardWidth,
               marginLeft: CARD_MARGIN,
               marginRight: (idx + 1) % numColumns === 0 ? CARD_MARGIN : 0,
-            },
-          ]}
-          onPress={() => handleCategoryPress(item)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.categoryContent}>
-            <Text style={styles.categoryName} numberOfLines={2}>
-              {item.displayName}
-            </Text>
-            <Text style={styles.channelCount}>
-              {item.channelCount} channels
-            </Text>
-          </View>
-        </TouchableOpacity>
-      ))}
+              marginBottom: 16,
+            }}
+          >
+            <TouchableOpacity
+              focusable={true}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              activeOpacity={0.7}
+              style={styles.categoryCard}
+              onPress={() => onCategorySelect(item.name, channelsData![item.name])}
+            >
+              <View style={styles.categoryContent}>
+                <Text style={styles.categoryName} numberOfLines={2}>
+                  {item.displayName}
+                </Text>
+                <Text style={styles.channelCount}>
+                  {item.channelCount} channels
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        );
+      })}
     </View>
   );
 
@@ -139,12 +161,11 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>iLiveTV</Text>
-        <Text style={styles.headerSubtitle}>
-          Choose a category
-        </Text>
+        <Text style={styles.headerSubtitle}>Choose a category</Text>
       </View>
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -158,21 +179,11 @@ const CategoryListScreen: React.FC<CategoryListScreenProps> = ({ onCategorySelec
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
   centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa',
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
+  loadingText: { marginTop: 16, fontSize: 16, color: '#666' },
   header: {
     marginTop: 12,
     backgroundColor: '#fff',
@@ -181,55 +192,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  listContainer: {
-    paddingVertical: 20,
-    paddingBottom: 40,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  headerSubtitle: { fontSize: 14, color: '#666', marginTop: 4 },
+  listContainer: { paddingVertical: 20, paddingBottom: 40 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+
   categoryCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: 'rgba(0,122,255,0.6)',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
   },
   categoryContent: {
-    padding: 20,
-    minHeight: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 20, minHeight: 100, justifyContent: 'center', alignItems: 'center',
   },
   categoryName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 8,
+    fontSize: 16, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 8,
   },
   channelCount: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+    fontSize: 12, color: '#666', textAlign: 'center',
   },
 });
 
