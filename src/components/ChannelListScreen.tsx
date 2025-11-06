@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
   RefreshControl,
 } from 'react-native';
@@ -28,24 +28,20 @@ interface ChannelItem {
   channel: Channel;
 }
 
-const CARD_MIN_WIDTH = 160;
-const CARD_MARGIN = 10;
-
 const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   categoryName,
   categoryData,
   onBack,
   onPlayVideo,
 }) => {
+  const { width } = useWindowDimensions();
   const [loadingChannel, setLoadingChannel] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const [refreshing, setRefreshing] = useState(false);
-  
-  useEffect(() => {
-    Dimensions.addEventListener('change', ({ window }) => {
-      setDimensions(window);
-    });
-  }, []);
+
+  const isLargeScreen = width > 900;
+
+  const CARD_MARGIN = isLargeScreen ? 20 : 10;
+  const CARD_MIN_WIDTH = isLargeScreen ? 220 : 160;
 
   const channels: ChannelItem[] = Object.entries(categoryData).map(([channelName, channel]) => ({
     id: channelName,
@@ -56,16 +52,10 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
   const handleChannelPress = async (channelName: string, channel: Channel) => {
     try {
       setLoadingChannel(channelName);
-
-      // Make API request to get video URL
       const videoUrl = await tvChannelsService.getChannelVideoUrl(categoryName, channelName);
-      // Validate the video URL
+
       if (typeof videoUrl !== 'string' || videoUrl.trim() === '') {
-        Alert.alert(
-          'Error',
-          `Invalid video URL received for ${channelName}. Please try again.`,
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Error', `Invalid video URL for ${channelName}.`, [{ text: 'OK' }]);
         return;
       }
 
@@ -77,12 +67,12 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
   };
 
-  // Responsive calculation
-  const screenWidth = dimensions.width;
-  const numColumns = Math.max(1, Math.floor((screenWidth - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN)));
-  const cardWidth = (screenWidth - CARD_MARGIN * (numColumns + 1)) / numColumns;
+  // ✅ Proper grid calc for all screens
+  const numColumns = Math.max(1, Math.floor((width - CARD_MARGIN) / (CARD_MIN_WIDTH + CARD_MARGIN)));
+  const cardWidth = (width - CARD_MARGIN * (numColumns + 1)) / numColumns;
 
   const renderChannelCards = () => (
     <View style={styles.grid}>
@@ -102,7 +92,9 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
             channelName={item.name}
             channel={item.channel}
             onPress={handleChannelPress}
+            width={cardWidth} // ✅ passes dynamic width
           />
+
           {loadingChannel === item.name && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="small" color="#007AFF" />
@@ -113,32 +105,24 @@ const ChannelListScreen: React.FC<ChannelListScreenProps> = ({
     </View>
   );
 
-  // Handle back button
-  const handleBack = () => {
-    onBack();
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {tvChannelsService.formatCategoryName(categoryName)}
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          {channels.length} channels available
-        </Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <Text style={styles.headerTitle}>{tvChannelsService.formatCategoryName(categoryName)}</Text>
+        <Text style={styles.headerSubtitle}>{channels.length} channels available</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={true}
+        disableScrollViewPanResponder={true} // ✅ Better for Android TV
       >
         {renderChannelCards()}
       </ScrollView>
@@ -159,15 +143,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
   },
-  backButton: {
-    marginTop: 12,
-    alignSelf: 'flex-end',
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
-  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -178,6 +153,15 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  backButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
   listContainer: {
     paddingVertical: 20,
     paddingBottom: 40,
@@ -186,6 +170,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   channelWrapper: {
     position: 'relative',
@@ -206,3 +191,5 @@ const styles = StyleSheet.create({
 });
 
 export default ChannelListScreen;
+
+
